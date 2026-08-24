@@ -95,7 +95,7 @@ grid = np.array([i for i in range(10)])
 alpha_grid = (150*np.exp(0.2*grid))
 R2_grid = 0*alpha_grid
 
-file = open('alpha_r2.csv',"a",buffering=0,encoding="utf-8")
+file = open('alpha_r2.csv',"a",buffering=1,encoding="utf-8")
 file.writelines(f'alpha,R2\n')
 
 for i in grid:
