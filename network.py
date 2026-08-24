@@ -110,6 +110,7 @@ for i in grid:
         test_fold_dataset = TensorDataset(controls_tensor[test_folds[k]], outcomes_tensor[test_folds[k]])
         test_fold_data = test_fold_dataset.tensors
         R2 = test(model, test_fold_data)
+        R2s.append(R2)
         print(f'R2: {R2:.4f}, Fold {k}, alpha {alpha:.4f}')
     mean_R2 = np.mean(R2s)
     print(f'R2: {mean_R2:.4f}, alpha {alpha:.4f}')
