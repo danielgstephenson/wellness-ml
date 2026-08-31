@@ -18,6 +18,7 @@ treatment = pd.read_csv('data/clean/treatment.csv').to_numpy()
 controls_tensor = torch.tensor(controls).float()
 outcomes_tensor = torch.tensor(outcomes).float()
 full_dataset = TensorDataset(controls_tensor, outcomes_tensor)
+print(outcomes_tensor.shape)
 
 class Model(nn.Module):
     def __init__(self, *args, **kwargs) -> None:
@@ -52,38 +53,39 @@ train_indices, test_indices = split(dataset_indices, 2)
 train_set = TensorDataset(controls_tensor[train_indices], outcomes_tensor[train_indices])
 test_set = TensorDataset(controls_tensor[test_indices], outcomes_tensor[test_indices])
 
-fold_count = 10
+fold_count = 2
 test_folds = split(train_indices, fold_count)
 train_folds = [
     list(set(dataset_indices)-set(fold_indices)) 
     for fold_indices in test_folds
 ]
 
-def train(data: tuple[Tensor,Tensor], alpha: float)->Model:
-    X, y = data
+def train(dataloader: DataLoader[tuple[Tensor,...]], alpha: float)->Model:
     model = Model()
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
-    for step in range(25000):
-        output = model(X)
-        mse = torch.mean((y-output)**2)
-        L1 = torch.tensor(0.0, requires_grad=True)
-        for param in model.parameters():
-            L1 = L1 + torch.norm(param, 1)
-        loss = mse + alpha*L1
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
-        # if step % 2 == 0:
-        #     SSR = torch.sum((y-output)**2)
-        #     mean_y = torch.mean(y)
-        #     SST = sum((y-mean_y)**2)
-        #     R2 = 1 - SSR/SST
-        #     print('Training R2',f'{R2.item():.3f}',step)
+    for epoch in range(50):
+        for batch in dataloader:
+            data: tuple[Tensor,...] = batch
+            X, y = data
+            output = model(X)
+            mse = torch.mean((y-output)**2)
+            L1 = torch.tensor(0.0, requires_grad=True)
+            for param in model.parameters():
+                L1 = L1 + torch.norm(param, 1)
+            loss = mse + alpha*L1
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+            # SSR = torch.sum((y-output)**2)
+            # mean_y = torch.mean(y)
+            # SST = sum((y-mean_y)**2)
+            # R2 = 1 - SSR/SST
+        R2 = test(model, dataloader.dataset[:])
+        print(f'epoch: {epoch}, R2: {R2:.4f}')
     return model
 
 def test(model: Model, data: tuple[Tensor,...])->float:
     X, y = data
-    model = Model()
     output = model(X)
     SSR = torch.sum((y-output)**2)
     mean_y = torch.mean(y)
@@ -91,8 +93,8 @@ def test(model: Model, data: tuple[Tensor,...])->float:
     R2 = 1 - SSR/SST
     return R2.item()
 
-grid = np.array([i for i in range(10)])
-alpha_grid = (150*np.exp(0.2*grid))
+grid = np.array([i for i in range(2)])
+alpha_grid = (1*np.exp(0.2*grid))
 R2_grid = 0*alpha_grid
 
 file = open('alpha_r2.csv',"a",buffering=1,encoding="utf-8")
@@ -104,9 +106,8 @@ for i in grid:
     R2s = []
     for k in range(fold_count):
         train_fold_dataset = TensorDataset(controls_tensor[train_folds[k]], outcomes_tensor[train_folds[k]])
-        dataloader = DataLoader(train_fold_dataset, batch_size=32, shuffle=True)   
-        train_fold_data: tuple[Tensor,Tensor] = next(iter(dataloader))
-        model = train(train_fold_data,alpha)
+        train_dataloader = DataLoader(train_fold_dataset, batch_size=32, shuffle=True)   
+        model = train(train_dataloader,alpha)
         test_fold_dataset = TensorDataset(controls_tensor[test_folds[k]], outcomes_tensor[test_folds[k]])
         test_fold_data = test_fold_dataset.tensors
         R2 = test(model, test_fold_data)
