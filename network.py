@@ -24,8 +24,8 @@ class Model(nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.activation = F.relu
-        self.W = 10
-        self.H = 3
+        self.W = 100
+        self.H = 4
         self.project_layer = nn.Linear(controls_tensor.shape[1], self.W)
         self.extra_hidden_layers = nn.ModuleList()
         for _ in range(self.H-1):
@@ -41,8 +41,6 @@ class Model(nn.Module):
     def __call__(self, *args, **kwds) -> Tensor:
         return super().__call__(*args, **kwds)
 
-# Start Loop Here
-
 def split[T](lst: list[T], n: int)->list[list[T]]:
     shuffled_lst = lst.copy()
     random.shuffle(shuffled_lst)
@@ -53,7 +51,7 @@ train_indices, test_indices = split(dataset_indices, 2)
 train_set = TensorDataset(controls_tensor[train_indices], outcomes_tensor[train_indices])
 test_set = TensorDataset(controls_tensor[test_indices], outcomes_tensor[test_indices])
 
-fold_count = 2
+fold_count = 10
 test_folds = split(train_indices, fold_count)
 train_folds = [
     list(set(dataset_indices)-set(fold_indices)) 
@@ -76,12 +74,8 @@ def train(dataloader: DataLoader[tuple[Tensor,...]], alpha: float)->Model:
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-            # SSR = torch.sum((y-output)**2)
-            # mean_y = torch.mean(y)
-            # SST = sum((y-mean_y)**2)
-            # R2 = 1 - SSR/SST
         R2 = test(model, dataloader.dataset[:])
-        print(f'epoch: {epoch}, R2: {R2:.4f}')
+        # print(f'epoch: {epoch}, R2: {R2:.4f}')
     return model
 
 def test(model: Model, data: tuple[Tensor,...])->float:
@@ -93,11 +87,11 @@ def test(model: Model, data: tuple[Tensor,...])->float:
     R2 = 1 - SSR/SST
     return R2.item()
 
-grid = np.array([i for i in range(2)])
-alpha_grid = (1*np.exp(0.2*grid))
+grid = np.array([i for i in range(10)])
+alpha_grid = (1*np.exp(0.4*grid))
 R2_grid = 0*alpha_grid
 
-file = open('alpha_r2.csv',"a",buffering=1,encoding="utf-8")
+file = open('alpha_r2.csv',"w",buffering=1,encoding="utf-8")
 file.writelines(f'alpha,R2\n')
 
 for i in grid:
@@ -112,10 +106,20 @@ for i in grid:
         test_fold_data = test_fold_dataset.tensors
         R2 = test(model, test_fold_data)
         R2s.append(R2)
-        print(f'R2: {R2:.4f}, Fold {k}, alpha {alpha:.4f}')
+        print(f'R2: {R2:.4f}, Fold {k+1}, alpha {alpha:.4f}')
     mean_R2 = np.mean(R2s)
+    R2_grid[i] = mean_R2
     print(f'R2: {mean_R2:.4f}, alpha {alpha:.4f}')
     file.writelines(f'{alpha:0.4f},{mean_R2:0.4f}\n')
+
+alpha = alpha_grid[np.argmax(R2_grid)]
+print(f'alpha = {alpha:.4f}')
+train_dataset = TensorDataset(controls_tensor, outcomes_tensor)
+train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)  
+model = train(train_dataloader,alpha)
+R2 = test(model, test_set.tensors)
+print(f'Test R2: {R2}')
+
 
 
 
