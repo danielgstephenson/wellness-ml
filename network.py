@@ -87,7 +87,7 @@ def test(model: Model, data: tuple[Tensor,...])->float:
     R2 = 1 - SSR/SST
     return R2.item()
 
-grid = np.array([i for i in range(10)])
+grid = np.array([i for i in range(20)])
 alpha_grid = (1*np.exp(0.4*grid))
 R2_grid = 0*alpha_grid
 
