@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader, TensorDataset
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("device = " + str(device))
 torch.set_default_device(device)
+generator = torch.Generator(device=device)
 
 script_dir = Path(__file__).resolve().parent
 os.chdir(script_dir)
@@ -104,7 +105,7 @@ for i in grid:
     R2s = []
     for k in range(fold_count):
         train_fold_dataset = TensorDataset(controls_tensor[train_folds[k]], outcomes_tensor[train_folds[k]])
-        train_dataloader = DataLoader(train_fold_dataset, batch_size=32, shuffle=True)   
+        train_dataloader = DataLoader(train_fold_dataset, batch_size=32, shuffle=True, generator=generator)
         model = train(train_dataloader,alpha)
         test_fold_dataset = TensorDataset(controls_tensor[test_folds[k]], outcomes_tensor[test_folds[k]])
         test_fold_data = test_fold_dataset.tensors
@@ -119,7 +120,7 @@ for i in grid:
 alpha = alpha_grid[np.argmax(R2_grid)]
 print(f'alpha = {alpha:.4f}')
 train_dataset = TensorDataset(controls_tensor, outcomes_tensor)
-train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)  
+train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True, generator=generator)
 model = train(train_dataloader,alpha)
 R2 = test(model, test_set.tensors)
 print(f'Test R2: {R2}')
