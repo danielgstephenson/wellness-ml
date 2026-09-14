@@ -9,6 +9,10 @@ from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("device = " + str(device))
+torch.set_default_device(device)
+
 script_dir = Path(__file__).resolve().parent
 os.chdir(script_dir)
 print(os.getcwd())
